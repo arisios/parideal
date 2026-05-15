@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ENERGIA_COLORS } from '../utils/profiles';
 import { BandeirinhaSVG } from '../components/Bandeirinhas';
@@ -15,17 +15,18 @@ export default function Result() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [shareToken, setShareToken] = useState(null);
-  const [showSaveForm, setShowSaveForm] = useState(false);
   const [allowMatch, setAllowMatch] = useState(false);
+  const [allowDivulgar, setAllowDivulgar] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
   const [copied, setCopied] = useState(false);
+  const fotoRef = useRef();
 
   if (!state?.profile) {
     return (
       <div className="min-h-screen bg-parideal flex flex-col items-center justify-center gap-4">
         <p style={{ color: '#6F2DA8' }}>Nenhum perfil encontrado.</p>
-        <button onClick={() => navigate('/quiz')} className="btn-magenta">
-          Fazer o quiz
-        </button>
+        <button onClick={() => navigate('/quiz')} className="btn-magenta">Fazer o quiz</button>
       </div>
     );
   }
@@ -33,16 +34,23 @@ export default function Result() {
   const { profile, respostas } = state;
   const cores = ENERGIA_COLORS[profile.energia] || ENERGIA_COLORS['Forró'];
 
+  const handleFoto = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFoto(f);
+    setFotoPreview(URL.createObjectURL(f));
+  };
+
   async function salvarPerfil() {
     setSaving(true);
     try {
-      const res = await api.post('/profiles/save', {
-        q1: respostas.q1,
-        q2: respostas.q2,
-        q3: respostas.q3,
-        q4: respostas.q4,
-        allow_match: allowMatch,
-      });
+      const fd = new FormData();
+      fd.append('q1', respostas.q1); fd.append('q2', respostas.q2);
+      fd.append('q3', respostas.q3); fd.append('q4', respostas.q4);
+      fd.append('allow_match', allowMatch ? '1' : '0');
+      fd.append('allow_divulgar', allowDivulgar ? '1' : '0');
+      if (foto) fd.append('foto', foto);
+      const res = await api.post('/profiles/save', fd);
       setShareToken(res.data.share_token);
       setSaved(true);
       toast.success('Perfil salvo! 🎉');
@@ -54,239 +62,97 @@ export default function Result() {
   }
 
   function copiarLink() {
-    const url = `${window.location.origin}/p/${shareToken}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      toast.success('Link copiado! 📋');
+    navigator.clipboard.writeText(`${window.location.origin}/p/${shareToken}`).then(() => {
+      setCopied(true); toast.success('Link copiado! 📋');
       setTimeout(() => setCopied(false), 3000);
     });
   }
 
   return (
     <div className="min-h-screen bg-parideal flex flex-col">
-      <div className="w-full overflow-hidden">
-        <BandeirinhaSVG className="w-full h-8" />
-      </div>
-
+      <div className="w-full overflow-hidden"><BandeirinhaSVG className="w-full h-8" /></div>
       <div className="flex-1 flex flex-col items-center px-4 py-8">
         <div className="w-full max-w-md">
-          {/* Título */}
+
           <div className="text-center mb-6 animate-slide-up">
             <span className="text-3xl">🎉</span>
-            <h1 className="font-display text-2xl font-bold mt-1" style={{ color: '#4B1E6D' }}>
-              Seu perfil junino!
-            </h1>
+            <h1 className="font-display text-2xl font-bold mt-1" style={{ color: '#4B1E6D' }}>Seu perfil junino!</h1>
           </div>
 
-          {/* Card principal do perfil */}
-          <div
-            className="rounded-3xl overflow-hidden shadow-xl mb-6 animate-slide-up"
-            style={{ animationDelay: '0.1s', boxShadow: '0 16px 48px rgba(75,30,109,0.2)' }}
-          >
-            {/* Header gradiente */}
-            <div
-              className={`bg-gradient-to-br ${cores.bg} p-6 text-white text-center relative`}
-            >
-              {/* Decoração */}
-              <div className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: 'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',
-                  backgroundSize: '10px 10px'
-                }}
-              />
-
-              <div className="relative">
-                <div className="text-5xl mb-3">✨</div>
-                <div
-                  className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3 uppercase tracking-wider"
-                  style={{ background: 'rgba(255,255,255,0.2)' }}
-                >
-                  Perfil #{profile.profileId}
-                </div>
-                <h2 className="font-display text-2xl sm:text-3xl font-bold leading-tight">
-                  {profile.profileName}
-                </h2>
-                <div
-                  className="inline-block mt-3 px-4 py-1.5 rounded-full text-sm font-semibold"
-                  style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)' }}
-                >
-                  Energia {profile.energia}
-                </div>
+          <div className="card-parideal p-6 mb-5 animate-slide-up" style={{ border: `2px solid ${cores.badge}30` }}>
+            <div className="flex items-center gap-4 mb-4">
+              {fotoPreview
+                ? <img src={fotoPreview} alt="" className="w-16 h-16 rounded-full object-cover" style={{ border: `2px solid ${cores.badge}` }}/>
+                : <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl" style={{ background: cores.light }}>💃</div>
+              }
+              <div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: cores.badge, color: '#fff' }}>{profile.energia}</span>
+                <h2 className="font-display text-lg font-bold mt-1" style={{ color: '#4B1E6D' }}>{profile.profileName}</h2>
               </div>
             </div>
-
-            {/* Corpo do card */}
-            <div className="bg-white p-6">
-              {/* Tagline */}
-              <p
-                className="text-center text-sm italic mb-4 pb-4 border-b"
-                style={{ color: '#8a6070', borderColor: 'rgba(111,45,168,0.1)' }}
-              >
-                "{profile.tagline}"
-              </p>
-
-              {/* Descrição */}
-              <p className="text-sm leading-relaxed mb-5" style={{ color: '#5a3040' }}>
-                {profile.descricao}
-              </p>
-
-              {/* Tags de atributos */}
-              <div className="flex flex-wrap gap-2 mb-5">
-                {[
-                  { label: '🎵 ' + profile.energia },
-                  { label: '💡 ' + profile.personalidade },
-                  { label: '💜 ' + profile.estilo },
-                ].map(({ label }) => (
-                  <span
-                    key={label}
-                    className="px-3 py-1 rounded-full text-xs font-medium"
-                    style={{ background: cores.light, color: '#4B1E6D' }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-
-              {/* Compatibilidade */}
-              <div
-                className="rounded-xl p-4 flex items-center gap-3"
-                style={{ background: 'linear-gradient(135deg, rgba(194,24,116,0.06), rgba(111,45,168,0.06))' }}
-              >
-                <span className="text-2xl">💘</span>
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#C21874' }}>
-                    Compatibilidade
-                  </div>
-                  <div className="text-sm font-medium mt-0.5" style={{ color: '#4B1E6D' }}>
-                    {profile.compatibilidade}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <p className="text-sm leading-relaxed" style={{ color: '#3A1F14' }}>{profile.descricao}</p>
           </div>
 
-          {/* Ações */}
           {!saved ? (
-            <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              {!showSaveForm ? (
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => setShowSaveForm(true)}
-                    className="btn-magenta w-full text-center"
-                  >
-                    Salvar e compartilhar 📤
-                  </button>
-                  <button
-                    onClick={() => navigate('/quiz')}
-                    className="btn-roxo w-full text-center opacity-70"
-                  >
-                    Refazer o quiz
-                  </button>
-                </div>
-              ) : (
-                <div className="card-parideal p-5">
-                  <h3 className="font-semibold text-base mb-4" style={{ color: '#4B1E6D' }}>
-                    Salvar meu perfil
-                  </h3>
+            <div className="card-parideal p-5 mb-4 animate-slide-up">
+              <h3 className="font-semibold mb-4" style={{ color: '#4B1E6D' }}>Salvar e participar dos matches</h3>
 
-                  {/* Aceitar matches */}
-                  <label className="flex items-start gap-3 mb-5 cursor-pointer">
-                    <div className="relative mt-0.5">
-                      <input
-                        type="checkbox"
-                        checked={allowMatch}
-                        onChange={(e) => setAllowMatch(e.target.checked)}
-                        className="sr-only"
-                      />
-                      <div
-                        className="w-5 h-5 rounded flex items-center justify-center transition-all"
-                        style={{
-                          background: allowMatch ? '#C21874' : 'white',
-                          border: `2px solid ${allowMatch ? '#C21874' : '#d0b0b8'}`,
-                        }}
-                      >
-                        {allowMatch && <span className="text-white text-xs">✓</span>}
-                      </div>
-                    </div>
-                    <span className="text-sm" style={{ color: '#5a3040' }}>
-                      Aceito receber matches com outros perfis compatíveis ❤️
-                    </span>
-                  </label>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowSaveForm(false)}
-                      className="flex-1 py-3 rounded-xl text-sm font-medium border transition-colors"
-                      style={{ borderColor: 'rgba(111,45,168,0.2)', color: '#6F2DA8' }}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={salvarPerfil}
-                      disabled={saving}
-                      className="flex-1 btn-magenta py-3 text-sm"
-                    >
-                      {saving ? <LoadingSpinner size="sm" /> : 'Salvar ✨'}
-                    </button>
+              <div className="mb-4">
+                <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: '#C79A3B' }}>Sua foto (opcional)</p>
+                <div className="flex items-center gap-3">
+                  <div onClick={() => fotoRef.current?.click()} className="cursor-pointer w-16 h-16 rounded-full overflow-hidden flex items-center justify-center"
+                    style={{ border: `2px dashed ${fotoPreview ? '#C21874' : 'rgba(199,154,59,0.4)'}`, background: 'rgba(255,255,255,0.5)' }}>
+                    {fotoPreview ? <img src={fotoPreview} alt="" className="w-full h-full object-cover"/> : <span className="text-2xl">📷</span>}
                   </div>
+                  <div>
+                    <p className="text-xs" style={{ color: 'rgba(58,31,20,0.6)' }}>Toque para adicionar sua foto</p>
+                    {fotoPreview && <button onClick={() => { setFoto(null); setFotoPreview(null); }} className="text-xs mt-1" style={{ color: '#C21874' }}>Remover</button>}
+                  </div>
+                  <input ref={fotoRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-3 mb-5 rounded-xl p-3" style={{ background: 'rgba(199,154,59,0.08)' }}>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" checked={allowDivulgar} onChange={e => { setAllowDivulgar(e.target.checked); if (!e.target.checked) setAllowMatch(false); }} className="mt-0.5 accent-pink-600" />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#4B1E6D' }}>Aparecer na busca de matches</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(58,31,20,0.5)' }}>Seu perfil fica visível para outros encontrarem você</p>
+                  </div>
+                </label>
+                {allowDivulgar && (
+                  <label className="flex items-start gap-3 cursor-pointer pl-6">
+                    <input type="checkbox" checked={allowMatch} onChange={e => setAllowMatch(e.target.checked)} className="mt-0.5 accent-pink-600" />
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: '#4B1E6D' }}>Aceitar matches e chat</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(58,31,20,0.5)' }}>Permite que matches entrem em contato via chat</p>
+                    </div>
+                  </label>
+                )}
+              </div>
+
+              <button onClick={salvarPerfil} className="btn-magenta w-full" disabled={saving}>
+                {saving ? <span className="flex items-center justify-center gap-2"><LoadingSpinner size="sm"/>Salvando...</span> : '💾 Salvar meu perfil'}
+              </button>
             </div>
           ) : (
-            /* Perfil salvo — mostrar link de compartilhamento */
-            <div className="card-parideal p-5 animate-slide-up">
-              <div className="text-center mb-4">
-                <span className="text-3xl">🎊</span>
-                <h3 className="font-semibold mt-1" style={{ color: '#4B1E6D' }}>
-                  Perfil salvo com sucesso!
-                </h3>
-                <p className="text-xs mt-1" style={{ color: '#8a6070' }}>
-                  Compartilhe seu link junino
-                </p>
+            <div className="card-parideal p-5 mb-4 animate-slide-up">
+              <p className="text-center font-semibold mb-3" style={{ color: '#007C91' }}>✅ Perfil salvo!</p>
+              <div className="flex gap-2 mb-4">
+                <input readOnly value={`${window.location.origin}/p/${shareToken}`} className="input-junina text-xs flex-1" />
+                <button onClick={copiarLink} className="btn-roxo text-sm px-3">{copied ? '✓' : '📋'}</button>
               </div>
-
-              <div
-                className="flex items-center gap-2 p-3 rounded-xl mb-3 text-sm break-all"
-                style={{ background: 'rgba(111,45,168,0.06)', color: '#4B1E6D' }}
-              >
-                <span className="flex-1 font-mono text-xs">
-                  {window.location.origin}/p/{shareToken}
-                </span>
+              <div className="flex gap-2">
+                <button onClick={() => navigate('/matches')} className="btn-magenta flex-1 text-sm">💘 Ver Matches</button>
+                <button onClick={() => navigate('/')} className="btn-roxo flex-1 text-sm">Início</button>
               </div>
-
-              <button
-                onClick={copiarLink}
-                className="btn-magenta w-full mb-2"
-              >
-                {copied ? 'Copiado! ✓' : 'Copiar link 📋'}
-              </button>
-
-              <Link
-                to={`/p/${shareToken}`}
-                className="block text-center text-sm underline mt-2"
-                style={{ color: '#6F2DA8' }}
-              >
-                Ver página do perfil →
-              </Link>
             </div>
           )}
 
-          {/* Fazer de novo */}
-          <div className="text-center mt-6">
-            <button
-              onClick={() => navigate('/')}
-              className="text-sm underline"
-              style={{ color: '#8a6070' }}
-            >
-              ← Voltar ao início
-            </button>
-          </div>
+          <button onClick={() => navigate('/quiz')} className="w-full text-sm py-2" style={{ color: 'rgba(58,31,20,0.4)' }}>Refazer o quiz</button>
         </div>
       </div>
-
-      <div className="w-full overflow-hidden rotate-180">
-        <BandeirinhaSVG className="w-full h-8" />
-      </div>
+      <div className="w-full overflow-hidden"><BandeirinhaSVG className="w-full h-8" /></div>
     </div>
   );
 }

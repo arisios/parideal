@@ -8,6 +8,8 @@ import Result from './pages/Result';
 import SharedProfile from './pages/SharedProfile';
 import AuthPage from './pages/AuthPage';
 import AdminPanel from './pages/AdminPanel';
+import Matches from './pages/Matches';
+import Chat from './pages/Chat';
 import LoadingSpinner from './components/LoadingSpinner';
 
 function AdminRoute({ children }) {
@@ -34,6 +36,8 @@ export default function App() {
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/resultado" element={<Result />} />
           <Route path="/p/:token" element={<SharedProfile />} />
+          <Route path="/matches" element={<Matches />} />
+          <Route path="/chat/:profileId" element={<Chat />} />
           <Route path="/login" element={<AuthPage />} />
           <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />

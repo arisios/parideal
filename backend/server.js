@@ -3,9 +3,12 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { initDb } = require('./database/db');
 
-const authRoutes = require('./routes/auth');
+const path = require('path');
+const authRoutes    = require('./routes/auth');
 const profilesRoutes = require('./routes/profiles');
-const adminRoutes = require('./routes/admin');
+const adminRoutes   = require('./routes/admin');
+const matchesRoutes = require('./routes/matches');
+const chatRoutes    = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -55,8 +58,11 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/admin', adminLimiter);
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profilesRoutes);
+app.use('/api/matches', matchesRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req, res) => {
