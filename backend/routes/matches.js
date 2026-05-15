@@ -17,12 +17,9 @@ router.get('/', authMiddleware, (req, res) => {
 
   // Todos os perfis que autorizam divulgação e match, exceto o próprio
   const others = db.prepare(`
-    SELECT p.*, u.name as user_name, u.instagram as user_instagram
-    FROM profiles p
-    LEFT JOIN (SELECT id, name, instagram FROM users) u ON p.user_id = u.id
-    WHERE p.allow_divulgar = 1 AND p.allow_match = 1
-    AND p.id != ?
-    ORDER BY p.created_at DESC
+    SELECT * FROM profiles
+    WHERE allow_divulgar = 1 AND allow_match = 1 AND id != ?
+    ORDER BY created_at DESC
   `).all(mine.id);
 
   // Calcular score e verificar likes mútuos
@@ -33,7 +30,6 @@ router.get('/', authMiddleware, (req, res) => {
     return {
       id: o.id, share_token: o.share_token, energia: o.energia,
       profile_name: o.profile_name, foto_path: o.foto_path,
-      user_name: o.user_name, user_instagram: o.user_instagram,
       score, liked, matched,
       ...buildProfile(o.q1, o.q2, o.q3, o.q4),
     };
@@ -76,18 +72,16 @@ router.get('/mutual', authMiddleware, (req, res) => {
   if (!mine) return res.status(404).json({ error: 'Crie seu perfil primeiro' });
 
   const mutuals = db.prepare(`
-    SELECT p.*, u.name as user_name, u.instagram as user_instagram
+    SELECT p.*
     FROM likes l1
     JOIN likes l2 ON l1.from_profile_id = l2.to_profile_id AND l1.to_profile_id = l2.from_profile_id
     JOIN profiles p ON p.id = l1.to_profile_id
-    LEFT JOIN (SELECT id, name, instagram FROM users) u ON p.user_id = u.id
     WHERE l1.from_profile_id = ?
   `).all(mine.id);
 
   const result = mutuals.map(o => ({
     id: o.id, share_token: o.share_token, energia: o.energia,
     profile_name: o.profile_name, foto_path: o.foto_path,
-    user_name: o.user_name, user_instagram: o.user_instagram,
     score: calcScore(mine, o),
     unread: db.prepare('SELECT COUNT(*) as c FROM messages WHERE from_profile_id=? AND to_profile_id=? AND read=0').get(o.id, mine.id)?.c || 0,
   }));
